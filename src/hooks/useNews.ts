@@ -4,25 +4,62 @@ import { fetchNewsApiArticles } from "../services/newsApiService";
 import { fetchGuardianArticles } from "../services/guardianService";
 import { fetchNytArticles } from "../services/nytService";
 
+function formatNytDate(date: string | undefined) {
+  if (!date) return undefined;
+  // NYT expects YYYYMMDD
+  return date.replace(/-/g, "");
+}
+
 export function useNewsFetcher() {
-  const { filter, preferences, setArticles, setLoading } = useNewsContext();
+  const { filter, preferences, setArticles, setLoading, newsApiSources } =
+    useNewsContext();
 
   const fetchAllArticles = useCallback(async () => {
     setLoading(true);
     try {
-      // Only fetch from preferred sources if set, otherwise all
-      const sources =
-        preferences.sources.length > 0
-          ? preferences.sources
-          : ["NewsAPI", "The Guardian", "NYT"];
+      let sourcesToFetch: string[] = [];
+      if (filter.source) {
+        const isNewsApiSource = newsApiSources.some(
+          (s) => s.id === filter.source
+        );
+        if (isNewsApiSource) {
+          // Only call NewsAPI with the selected source
+          const articles = await fetchNewsApiArticles({
+            ...filter,
+            source: filter.source,
+          });
+          setArticles(articles);
+          setLoading(false);
+          return;
+        } else if (filter.source === "The Guardian") {
+          const articles = await fetchGuardianArticles(filter);
+          setArticles(articles);
+          setLoading(false);
+          return;
+        } else if (filter.source === "NYT") {
+          // Format date for NYT
+          const nytFilter = { ...filter, date: formatNytDate(filter.date) };
+          const articles = await fetchNytArticles(nytFilter);
+          setArticles(articles);
+          setLoading(false);
+          return;
+        }
+      }
+      if (preferences.sources.length > 0) {
+        sourcesToFetch = preferences.sources;
+      } else {
+        sourcesToFetch = ["NewsAPI", "The Guardian", "NYT"];
+      }
       const promises = [];
-      if (sources.includes("NewsAPI"))
+      if (sourcesToFetch.includes("NewsAPI"))
         promises.push(fetchNewsApiArticles(filter));
-      if (sources.includes("The Guardian"))
+      if (sourcesToFetch.includes("The Guardian"))
         promises.push(fetchGuardianArticles(filter));
-      if (sources.includes("NYT")) promises.push(fetchNytArticles(filter));
+      if (sourcesToFetch.includes("NYT")) {
+        const nytFilter = { ...filter, date: formatNytDate(filter.date) };
+        promises.push(fetchNytArticles(nytFilter));
+      }
       const results = await Promise.all(promises);
-      // Flatten and filter by category/author if needed
       let articles = results.flat();
       if (preferences.categories.length > 0) {
         articles = articles.filter(
@@ -40,7 +77,7 @@ export function useNewsFetcher() {
     } finally {
       setLoading(false);
     }
-  }, [filter, preferences, setArticles, setLoading]);
+  }, [filter, preferences, setArticles, setLoading, newsApiSources]);
 
   return { fetchAllArticles };
 }
