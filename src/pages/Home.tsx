@@ -5,25 +5,41 @@ import ArticleCard from "../components/ArticleCard";
 import FilterBar from "../components/FilterBar";
 import PreferencesModal from "../components/PreferencesModal";
 
-const allSources = ["NewsAPI", "The Guardian", "NYT"];
-const allCategories = [
-  "World",
-  "Business",
-  "Technology",
-  "Sports",
-  "Entertainment",
-];
-const allAuthors = ["Author 1", "Author 2", "Author 3"];
-
 const Home: React.FC = () => {
-  const { articles, filter, setFilter, preferences, setPreferences, loading } =
-    useNewsContext();
+  const {
+    articles,
+    filter,
+    setFilter,
+    preferences,
+    setPreferences,
+    loading,
+    newsApiSources,
+    newsApiCategories,
+    guardianSections,
+    nytCategories,
+  } = useNewsContext();
   const [showPrefs, setShowPrefs] = useState(false);
   const { fetchAllArticles } = useNewsFetcher();
 
   useEffect(() => {
     fetchAllArticles();
   }, [filter, preferences, fetchAllArticles]);
+
+  // Combine all sources for dropdown
+  const allSources = [
+    ...newsApiSources.map((s) => ({ id: s.id, name: s.name })),
+    { id: "The Guardian", name: "The Guardian" },
+    { id: "NYT", name: "NYT" },
+  ];
+  // Combine all categories for dropdown
+  const allCategories = Array.from(
+    new Set([
+      ...newsApiCategories,
+      ...guardianSections.map((s) => s.id),
+      ...nytCategories,
+    ])
+  );
+  const allAuthors = ["Author 1", "Author 2", "Author 3"];
 
   // Filter articles based on preferences (for demo, real filter should be in fetch logic)
   const filteredArticles = articles.filter((article) => {
@@ -75,7 +91,7 @@ const Home: React.FC = () => {
         onClose={() => setShowPrefs(false)}
         preferences={preferences}
         onSave={setPreferences}
-        allSources={allSources}
+        allSources={allSources.map((s) => s.name)}
         allCategories={allCategories}
         allAuthors={allAuthors}
       />

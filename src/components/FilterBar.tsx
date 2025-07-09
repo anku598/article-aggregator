@@ -1,10 +1,15 @@
 import React, { useState } from "react";
 import type { Filter } from "../types/filter";
 
+interface SourceOption {
+  id: string;
+  name: string;
+}
+
 interface FilterBarProps {
   filter: Filter;
   onChange: (filter: Filter) => void;
-  sources: string[];
+  sources: SourceOption[];
   categories: string[];
 }
 
@@ -61,8 +66,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
       >
         <option value="">All Sources</option>
         {sources.map((src) => (
-          <option key={src} value={src}>
-            {src}
+          <option key={src.id} value={src.id}>
+            {src.name}
           </option>
         ))}
       </select>

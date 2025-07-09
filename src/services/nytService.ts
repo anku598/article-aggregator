@@ -31,3 +31,24 @@ export async function fetchNytArticles(filter: Filter): Promise<Article[]> {
     category: filter.category,
   }));
 }
+
+// NYT does not provide a direct endpoint for categories/sections. You may define static categories if needed.
+export function getNytCategories(): string[] {
+  return [
+    "World",
+    "U.S.",
+    "Business",
+    "Technology",
+    "Sports",
+    "Science",
+    "Health",
+    "Arts",
+    "Books",
+    "Style",
+    "Food",
+    "Travel",
+    "Magazine",
+    "Real Estate",
+    "Opinion",
+  ];
+}
