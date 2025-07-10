@@ -10,6 +10,15 @@ function formatNytDate(date: string | undefined) {
   return date.replace(/-/g, "");
 }
 
+// In-memory cache: { [key: string]: { data: Article[], timestamp: number } }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CACHE: Record<string, { data: any; timestamp: number }> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getCacheKey(api: string, filter: any) {
+  return api + ":" + JSON.stringify(filter);
+}
+
 export function useNewsFetcher() {
   const { filter, preferences, setArticles, setLoading, newsApiSources } =
     useNewsContext();
@@ -23,23 +32,48 @@ export function useNewsFetcher() {
           (s) => s.id === filter.source
         );
         if (isNewsApiSource) {
-          // Only call NewsAPI with the selected source
+          const cacheKey = getCacheKey("newsapi", {
+            ...filter,
+            source: filter.source,
+          });
+          const cached = CACHE[cacheKey];
+          if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            setArticles(cached.data);
+            setLoading(false);
+            return;
+          }
           const articles = await fetchNewsApiArticles({
             ...filter,
             source: filter.source,
           });
+          CACHE[cacheKey] = { data: articles, timestamp: Date.now() };
           setArticles(articles);
           setLoading(false);
           return;
         } else if (filter.source === "The Guardian") {
+          const cacheKey = getCacheKey("guardian", filter);
+          const cached = CACHE[cacheKey];
+          if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            setArticles(cached.data);
+            setLoading(false);
+            return;
+          }
           const articles = await fetchGuardianArticles(filter);
+          CACHE[cacheKey] = { data: articles, timestamp: Date.now() };
           setArticles(articles);
           setLoading(false);
           return;
         } else if (filter.source === "NYT") {
-          // Format date for NYT
           const nytFilter = { ...filter, date: formatNytDate(filter.date) };
+          const cacheKey = getCacheKey("nyt", nytFilter);
+          const cached = CACHE[cacheKey];
+          if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            setArticles(cached.data);
+            setLoading(false);
+            return;
+          }
           const articles = await fetchNytArticles(nytFilter);
+          CACHE[cacheKey] = { data: articles, timestamp: Date.now() };
           setArticles(articles);
           setLoading(false);
           return;
@@ -51,13 +85,52 @@ export function useNewsFetcher() {
         sourcesToFetch = ["NewsAPI", "The Guardian", "NYT"];
       }
       const promises = [];
-      if (sourcesToFetch.includes("NewsAPI"))
-        promises.push(fetchNewsApiArticles(filter));
-      if (sourcesToFetch.includes("The Guardian"))
-        promises.push(fetchGuardianArticles(filter));
+      const cacheKeys: string[] = [];
+      if (sourcesToFetch.includes("NewsAPI")) {
+        const cacheKey = getCacheKey("newsapi", filter);
+        cacheKeys.push(cacheKey);
+        const cached = CACHE[cacheKey];
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          promises.push(Promise.resolve(cached.data));
+        } else {
+          promises.push(
+            fetchNewsApiArticles(filter).then((data) => {
+              CACHE[cacheKey] = { data, timestamp: Date.now() };
+              return data;
+            })
+          );
+        }
+      }
+      if (sourcesToFetch.includes("The Guardian")) {
+        const cacheKey = getCacheKey("guardian", filter);
+        cacheKeys.push(cacheKey);
+        const cached = CACHE[cacheKey];
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          promises.push(Promise.resolve(cached.data));
+        } else {
+          promises.push(
+            fetchGuardianArticles(filter).then((data) => {
+              CACHE[cacheKey] = { data, timestamp: Date.now() };
+              return data;
+            })
+          );
+        }
+      }
       if (sourcesToFetch.includes("NYT")) {
         const nytFilter = { ...filter, date: formatNytDate(filter.date) };
-        promises.push(fetchNytArticles(nytFilter));
+        const cacheKey = getCacheKey("nyt", nytFilter);
+        cacheKeys.push(cacheKey);
+        const cached = CACHE[cacheKey];
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          promises.push(Promise.resolve(cached.data));
+        } else {
+          promises.push(
+            fetchNytArticles(nytFilter).then((data) => {
+              CACHE[cacheKey] = { data, timestamp: Date.now() };
+              return data;
+            })
+          );
+        }
       }
       const results = await Promise.all(promises);
       let articles = results.flat();
