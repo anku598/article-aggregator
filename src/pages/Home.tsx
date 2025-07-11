@@ -4,6 +4,7 @@ import { useNewsFetcher } from "../hooks/useNews";
 import ArticleCard from "../components/ArticleCard";
 import FilterBar from "../components/FilterBar";
 import PreferencesModal from "../components/PreferencesModal";
+import { Button } from "@/components/ui/button";
 
 const Home: React.FC = () => {
   const {
@@ -57,15 +58,12 @@ const Home: React.FC = () => {
   });
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">News Aggregator</h1>
-        <button
-          onClick={() => setShowPrefs(true)}
-          className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-        >
+    <div className="max-w-[95%] mx-auto p-4">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-4xl font-bold">Article Aggregator</h1>
+        <Button variant={"default"} onClick={() => setShowPrefs(true)}>
           Preferences
-        </button>
+        </Button>
       </div>
       <FilterBar
         filter={filter}
@@ -76,13 +74,15 @@ const Home: React.FC = () => {
       {loading ? (
         <div className="text-center py-8">Loading...</div>
       ) : (
-        <div className="grid gap-4">
+        <div className="py-4">
           {filteredArticles.length === 0 ? (
             <div className="text-center text-gray-500">No articles found.</div>
           ) : (
-            filteredArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10">
+              {filteredArticles.map((article) => (
+                <ArticleCard key={article.id} article={article} />
+              ))}
+            </div>
           )}
         </div>
       )}
